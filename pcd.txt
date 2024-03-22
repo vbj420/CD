@@ -1,0 +1,1092 @@
+#LEFT RECURSION
+
+def removeLeftRecursion(rules):
+    store = {}
+    for lhs in rules:
+        alpha = []
+        beta = []
+        allrhs = rules[lhs]
+       
+        for subrhs in allrhs:
+            if subrhs[0] == lhs:
+                alpha.append(subrhs[1:])
+            else:
+                beta.append(subrhs)
+       
+        if len(alpha) != 0:
+            lhs_ = lhs + ""
+           
+            while (lhs_ in rules.keys() or lhs_ in store.keys()):
+                lhs_ += "'"
+           
+            for b in range(0, len(beta)):
+                beta[b].append(lhs_)
+           
+            rules[lhs] = beta
+               
+            for a in range(0, len(alpha)):
+                alpha[a].append(lhs_)
+           
+            alpha.append(['#'])
+            store[lhs_] = alpha
+   
+    for left in store:
+        rules[left] = store[left]
+           
+    #####################################
+    for lhs in list(rules.keys()):
+        for r in rules[lhs]:
+            if r[0] in store:
+                rules[lhs].remove(r)
+               
+                for newr in store[r[0]]:
+                    newr += r[1:]
+                    rules[lhs].append(newr)
+   
+    return rules
+           
+
+rules = {
+    'S': [['S', 'a'], ['S','B'], ['c'], ['d']]
+    #'A1': [['A2', 'A3']],
+    #'A2': [['A3', 'A1'], ['b']],
+    #'A3': [['A3', 'A1'], ['a']]
+}
+
+print("\nBefore")
+for lhs,rhs in rules.items():
+    print(lhs, '->', rhs)
+
+rules = removeLeftRecursion(rules)
+
+print("\nAfter")
+for lhs,rhs in rules.items():
+    print(lhs, '->', rhs)
+
+
+
+
+############################################
+
+
+
+#left factoring
+
+
+def LeftFactoring(rules):
+   
+    newd = {}
+   
+    for lhs in rules:
+        allrhs = rules[lhs]
+        temp = {}
+       
+        for subrhs in allrhs:
+            if subrhs[0] not in temp:
+                temp[subrhs[0]] = [subrhs]
+            else:
+                temp[subrhs[0]].append(subrhs)
+       
+        newr = []
+        tempd = {}
+       
+        for x in temp:
+            y = temp[x]
+           
+            if len(y) > 1:
+                lhs_ = lhs + "'"
+               
+                while (lhs_ in rules.keys() or lhs_ in tempd.keys()):
+                    lhs += "'"
+                   
+                newr.append([x, lhs_])
+                ex_rules = []
+               
+                for g in temp[x]:
+                    ex_rules.append(g[1:])
+                tempd[lhs_] = ex_rules
+           
+            else:
+                newr.append(y[0])
+       
+        newd[lhs] = newr
+       
+        for left in tempd:
+            newd[left] = tempd[left]
+               
+    return newd
+
+def CLeftFactoring(rules):
+    while True:
+        newd = LeftFactoring(rules)
+        if newd == rules:
+            break
+        else:
+            rules = newd
+   
+    return newd
+       
+
+rules = {
+    'A': [['a', 'A', 'B'], ['a', 'B', 'c'], ['a', 'A', 'c']]
+    #'S': [['b', 'S', 'S', 'a', 'a', 'S'], ['b', 'S', 'S', 'a', 'S', 'b'], ['b', 'S', 'b'], ['a']]
+}
+
+print("\nbefore...")
+for lhs, rhs in rules.items():
+    print(lhs, '->', rhs)
+
+rules = CLeftFactoring(rules)
+#rules =  LeftFactoring(rules)
+
+print("\nafter...")
+for lhs, rhs in rules.items():
+    print(lhs, '->', rhs)
+
+
+
+#OPERATOR FUNC 
+
+from collections import defaultdict
+from prettytable import PrettyTable
+
+import networkx as nx
+from networkx.algorithms import bipartite
+import matplotlib.pyplot as plt
+
+
+def findFunc(G : nx.classes.digraph.DiGraph, terminals : list) -> dict :
+    ans = {'f' : {}, 'g' : {}}
+    nodes = G.nodes()
+
+    for node in nodes :
+        fList = list(nx.all_simple_paths(G, source = node, target = 'f$'))
+        gList = list(nx.all_simple_paths(G, source = node, target = 'g$'))
+
+        fMaxLen, gMaxLen = 0, 0
+
+        if fList != [] :
+            fMaxLen = len(max(fList, key = len)) - 1
+
+        if gList != [] :
+            gMaxLen = len(max(gList, key = len)) - 1
+
+        if node[0] == 'f' :
+            ans['f'][node[1]] = max(fMaxLen, gMaxLen)
+
+        else :
+            ans['g'][node[1]] = max(fMaxLen, gMaxLen)
+
+    return ans
+
+def displayGraph(T, color='gold'):
+    
+    terminals = list(T.keys())
+    
+    f = ['f' + term for term in terminals]
+    g = ['g' + term for term in terminals]
+    
+    G = nx.DiGraph()
+    
+    G.add_nodes_from(f, bipartite = 0)
+    G.add_nodes_from(g, bipartite = 1)
+
+    colors = ['blue', 'red', 'green', 'orange', 'purple', 'teal', 'lime', 'purple']
+    edgeColor = {}
+    indx = 0
+    
+    for K, V in T.items():
+        for k, v in V.items():
+    
+            if T[K][k] == '>':
+                G.add_edges_from([('f' + K, 'g' + k)])
+                edgeColor[('f' + K, 'g' + k)] = colors[indx]
+            
+            elif T[K][k] == '<':
+                G.add_edges_from([('g' + k, 'f' + K)])
+                edgeColor[('g' + k, 'f' + K)] = colors[indx]
+        
+        indx = (indx + 1) % len(colors)
+    
+    pos = nx.bipartite_layout(G, nodes=f)
+    nx.draw(G, pos, with_labels=True, node_color=color, node_size=2000, font_size=12,
+            edge_color=[edgeColor.get(E, 'black') for E in G.edges()], width=2.0)
+    
+    ax = plt.gcf()
+    ax.set_facecolor('gray')
+    
+    return G
+
+def print_table(T):
+    t = list(T.keys())
+    for k, v in T.items():
+        row = [k]
+        for term in t:
+            row.append(T[k][term])
+        print(row)
+
+
+def isTerminal(char: str) -> bool:
+    return not char.isupper() and char != '<' and char != '>' and char != '='
+
+def getTerminals(G: dict) -> list:
+    t = []
+    for k, v in G.items():
+        for p in v:
+            if len(p) == 1 and not p.isupper():
+                t += [p]
+            else:
+                for char in p:
+                    if not char.isupper():
+                        t += [char]
+    return t + ['$']
+
+def createTable(G: dict, L: dict, T: dict, start: str) -> dict:
+    t = getTerminals(G)
+    ans = defaultdict(dict)
+    for term in t:
+        ans[term]
+    for term in t:
+        if term == '$':
+            ans['$'][term] = '-'
+        else:
+            ans['$'][term] = '<'
+            ans[term]['$'] = '>'
+    for k, v in G.items():
+        for p in v:
+            if len(p) > 1:
+                for i in range(len(p) - 1):
+                    if not p[i].isupper() and not p[i + 1].isupper():
+                        ans[p[i]][p[i + 1]] = '='
+                    if i < len(p) - 2:
+                        if not p[i].isupper() and not p[i + 2].isupper() and p[i + 1].isupper() == True:
+                            ans[p[i]][p[i + 2]] = '='
+                    if isTerminal(p[i]) and not isTerminal(p[i + 1]):
+                        for char in L[p[i + 1]]:
+                            ans[p[i]][char] = '<'
+                    if not isTerminal(p[i]) and isTerminal(p[i + 1]):
+                        for char in T[p[i]]:
+                            ans[char][p[i + 1]] = '>'
+    for k, v in ans.items():
+        for term in t:
+            ans[k].setdefault(term, '-')
+    return ans
+
+def lead(G: dict, ans=defaultdict(list)) -> dict:
+    for k, v in G.items():
+        for p in v:
+            if len(p) == 1:
+                if not p.isupper():
+                    ans[k] += [p]
+                else:
+                    ans[k] += ans[p]
+            else:
+                if not p[0].isupper():
+                    ans[k] += [p[0]]
+                elif not p[1].isupper():
+                    ans[k] += [p[1]]
+    return ans
+
+def trail(G: dict, ans=defaultdict(list)) -> dict:
+    for k, v in G.items():
+        for p in v:
+            if len(p) == 1:
+                if not p.isupper():
+                    ans[k] += [p]
+                else:
+                    ans[k] += ans[p]
+            else:
+                if not p[-1].isupper():
+                    ans[k] += [p[-1]]
+                elif not p[-2].isupper():
+                    ans[k] += [p[-2]]
+    return ans
+
+def main() -> None:
+   
+    G: dict = {'F': ['i'], 'T': ['T*F', 'F'], 'E': ['E+T', 'T']}
+    start: str = 'S'
+    inp = '(a,a)$'
+    
+    L: dict = lead(G)
+    print('\nLeading :\n')
+    for k, v in L.items():
+        print("{k} : {v}".format(k=k, v=v))
+    
+    T: dict = trail(G)
+    print('\n\nTrailing :\n')
+    for k, v in T.items():
+        print("{k} : {v}".format(k=k, v=v))
+    
+    table: dict = createTable(G, L, T, start)
+    print('\n\nTable :\n')
+    print_table(table)
+    
+    print('\n\nDisplaying the graph :\n')
+    graph = displayGraph(table, 'silver')
+    func = findFunc(graph, list(table.keys()))
+    print(func)
+
+if __name__ == '__main__':
+    main() 
+
+
+#SHIFT REDUCE 
+def shiftReduce(G,input,start_symbol):
+  
+    parseTable=[]
+    index=0
+    
+    stack='$'
+    operation=''
+    
+    parseTable.append([stack, ' - ',input])
+  
+    while True:
+        if len(stack) > 0:
+            if index == len(input)-1 and len(stack) == 2:
+                if stack[1] == start_symbol:
+                    print("Valid")
+                else:
+                    print("Invalid")
+    
+                return parseTable
+  
+            reduceOccurs=False
+            
+            for lhs,rhs in G.items():
+                for prod in rhs:
+                    if prod == stack[-len(prod):]:
+                        reduceOccurs = True
+                        operation = 'Reduce'
+                        stack = stack[0 : -len(prod)] + lhs
+                        inp = input[index:]
+                        break
+                    
+                if reduceOccurs:
+                    break
+            
+            if not reduceOccurs:
+                stack += input[index]
+                index += 1
+                operation = 'Shift'
+                inp = input[index:]
+                
+            row = [stack,operation,inp]
+            parseTable.append(row)
+
+
+G = {'E' : ['E+E', 'E*E', 'i']}
+
+table = shiftReduce(G,'i*i+i$','E')
+
+for row in table:
+    print(row)
+    
+
+
+#OPERATOR PRECEDENCE PARSER
+from collections import defaultdict
+
+
+def print_table(T):
+    t = list(T.keys())
+    for k, v in T.items():
+        row = [k]
+        for term in t:
+            row.append(T[k][term])
+        print(row)
+
+
+def is_terminal(char: str) -> bool:
+    return not char.isupper() and char != '⋖' and char != '⋗' and char != '≐'
+
+
+def is_expr(inp: str, table: dict, G: dict) -> bool:
+    inp += '$'
+    indx = 0
+    stack = ['$']
+    ans = [['Stack', 'Operation', 'Input']]
+
+    while True:
+        stackT: str = ''
+        tFlag: bool = True
+
+        if not is_terminal(stack[-1]):
+            stackT = stack[-2]
+            tFlag = False
+        else:
+            stackT = stack[-1]
+
+        if stackT == inp[indx] == '$':
+            ans.append([''.join(stack), 'ACCEPT', inp[indx:]])
+            return True, ans
+
+        symbol = table[stackT][inp[indx]]
+        ans.append([''.join(stack), symbol, inp[indx:]])
+
+        if symbol == '≐':
+            stack += [inp[indx]]
+            indx += 1
+
+        elif symbol == '⋖':
+            if not tFlag:
+                stack.insert(-1, symbol)
+                tFlag = True
+            else:
+                stack += [symbol]
+            stack += [inp[indx]]
+            indx += 1
+
+        elif symbol == '⋗':
+            contents = ''
+
+            while stack[-1] != '⋖':
+                contents = stack.pop() + contents
+            stack.pop()
+            found = False
+            for LHS, RHS in G.items():
+                for prod in RHS:
+                    if contents == prod:
+                        stack += [LHS]
+                        found = True
+                        break
+                    elif len(prod) == len(contents) == 3 and prod[1] == contents[1]:
+                        stack += [LHS]
+                        found = True
+                        break
+                if found:
+                    break
+            else:
+                return False, []
+        else:
+            return False, []
+
+
+def get_terminals(G: dict) -> list:
+    t = []
+    for k, v in G.items():
+        for p in v:
+            if len(p) == 1 and not p.isupper():
+                t += [p]
+            else:
+                for char in p:
+                    if not char.isupper():
+                        t += [char]
+    return t + ['$']
+
+
+def create_table(G: dict, L: dict, T: dict, start: str) -> dict:
+    t = get_terminals(G)
+    ans = defaultdict(dict)
+
+    for term in t:
+        ans[term]
+
+    for term in t:
+        if term == '$':
+            ans['$'][term] = '-'
+        else:
+            ans['$'][term] = '⋖'
+            ans[term]['$'] = '⋗'
+
+    for k, v in G.items():
+        for p in v:
+            if len(p) > 1:
+
+                for i in range(len(p) - 1):
+                    if not p[i].isupper() and not p[i + 1].isupper():
+                        ans[p[i]][p[i + 1]] = '≐'
+                    if i < len(p) - 2:
+                        if not p[i].isupper() and not p[i + 2].isupper() and p[i + 1].isupper() == True:
+                            ans[p[i]][p[i + 2]] = '≐'
+
+                    if is_terminal(p[i]) and not is_terminal(p[i + 1]):
+                        for char in L[p[i + 1]]:
+                            ans[p[i]][char] = '⋖'
+                    if not is_terminal(p[i]) and is_terminal(p[i + 1]):
+                        for char in T[p[i]]:
+                            ans[char][p[i + 1]] = '⋗'
+
+    for k, v in ans.items():
+        for term in t:
+            ans[k].setdefault(term, '-')
+
+    return ans
+
+
+def lead(G: dict, ans=defaultdict(list)) -> dict:
+    for k, v in G.items():
+        for p in v:
+            if len(p) == 1:
+                if not p.isupper():
+                    ans[k] += [p]
+                else:
+                    ans[k] += ans[p]
+            else:
+                if not p[0].isupper():
+                    ans[k] += [p[0]]
+                elif not p[1].isupper():
+                    ans[k] += [p[1]]
+    return ans
+
+
+def trail(G: dict, ans=defaultdict(list)) -> dict:
+    for k, v in G.items():
+        for p in v:
+            if len(p) == 1:
+                if not p.isupper():
+                    ans[k] += [p]
+                else:
+                    ans[k] += ans[p]
+            else:
+                if not p[-1].isupper():
+                    ans[k] += [p[-1]]
+                elif not p[-2].isupper():
+                    ans[k] += [p[-2]]
+    return ans
+
+
+def main() -> None:
+    G: dict = {'F': ['i'], 'T': ['T*F', 'F'], 'E': ['E+T', 'T']}
+    start: str = 'S'
+    inp = 'i*i'
+
+    L: dict = lead(G)
+    print('\nLeading :\n')
+    for k, v in L.items():
+        print("{k} : {v}".format(k=k, v=v))
+
+    T: dict = trail(G)
+    print('\n\nTrailing :\n')
+    for k, v in T.items():
+        print("{k} : {v}".format(k=k, v=v))
+
+    table: dict = create_table(G, L, T, start)
+    print('\n\nTable :\n')
+    print_table(table)
+
+    res = is_expr(inp, table, G)
+
+    if res[0]:
+        print('\nGiven expression is valid for the grammar.\n')
+        print('Parsing :\n')
+        for row in res[1]:
+            print(row)
+    else:
+        print('\nGiven expression is invalid for the grammar.\n')
+
+
+if __name__ == '__main__':
+    main()
+
+#PREDICTIVE PARSER
+def removeLeftRecursion(rulesDiction):
+	store = {}
+	for lhs in rulesDiction:
+		alphaRules = []
+		betaRules = []
+		allrhs = rulesDiction[lhs]
+        
+		for subrhs in allrhs:
+			if subrhs[0] == lhs:
+				alphaRules.append(subrhs[1:])
+			else:
+				betaRules.append(subrhs)
+
+		if len(alphaRules) != 0: 
+			lhs_ = lhs + "'"
+			while (lhs_ in rulesDiction.keys()) or (lhs_ in store.keys()):
+				lhs_ += "'"
+
+			for b in range(0, len(betaRules)):
+				betaRules[b].append(lhs_)
+			rulesDiction[lhs] = betaRules
+			
+			for a in range(0, len(alphaRules)):
+				alphaRules[a].append(lhs_)
+			alphaRules.append(['#'])
+			
+			store[lhs_] = alphaRules
+	
+	for left in store:
+		rulesDiction[left] = store[left]
+	return rulesDiction
+
+#############################################################################################
+
+def LeftFactoring(rulesDiction):
+
+	newDict = {}
+	
+	for lhs in rulesDiction:
+		
+		allrhs = rulesDiction[lhs]
+		temp = dict()
+        
+		for subrhs in allrhs:
+			if subrhs[0] not in list(temp.keys()):
+				temp[subrhs[0]] = [subrhs]
+			else:
+				temp[subrhs[0]].append(subrhs)
+		
+		new_rule = []
+		tempo_dict = {}
+        
+		for term_key in temp:
+			allStartingWithTermKey = temp[term_key]
+
+			if len(allStartingWithTermKey) > 1:
+				lhs_ = lhs + "'"
+				while (lhs_ in rulesDiction.keys()) \
+						or (lhs_ in tempo_dict.keys()):
+					lhs_ += "'"
+				new_rule.append([term_key, lhs_])
+				ex_rules = []
+
+				for g in temp[term_key]:
+					ex_rules.append(g[1:])
+				tempo_dict[lhs_] = ex_rules
+
+			else:
+				new_rule.append(allStartingWithTermKey[0])
+
+		newDict[lhs] = new_rule
+
+		for key in tempo_dict:
+			newDict[key] = tempo_dict[key]
+
+	return newDict
+
+#############################################################################################
+
+def first(rule):
+	global rules, nonterm_userdef, term_userdef, diction, firsts
+	
+	if len(rule) != 0 and (rule is not None):
+		if rule[0] in term_userdef:
+			return rule[0]
+		elif rule[0] == '#':
+			return '#'
+
+
+	if len(rule) != 0:
+
+		if rule[0] in list(diction.keys()):
+			fres = []
+			rhs_rules = diction[rule[0]]
+
+			for itr in rhs_rules:
+				indivRes = first(itr)
+
+				if type(indivRes) is list:
+
+					for i in indivRes:
+						fres.append(i)
+				else:
+					fres.append(indivRes)
+
+			if '#' not in fres:
+				return fres
+
+			else:
+				newList = []
+				fres.remove('#')
+
+				if len(rule) > 1:
+					ansNew = first(rule[1:])
+
+					if ansNew != None:
+
+						if type(ansNew) is list:
+							newList = fres + ansNew
+
+						else:
+							newList = fres + [ansNew]
+					else:
+						newList = fres
+
+					return newList
+
+				fres.append('#')
+
+				return fres
+
+#######################################################################################
+
+def follow(nt):
+	global start_symbol, rules, nonterm_userdef, term_userdef, diction, firsts, follows
+	solset = set()
+    
+	if nt == start_symbol:
+		solset.add('$')
+
+	for curNT in diction:
+		rhs = diction[curNT]
+		
+		for subrule in rhs:
+			if nt in subrule:
+				while nt in subrule:
+					index_nt = subrule.index(nt)
+					subrule = subrule[index_nt + 1:]
+					if len(subrule) != 0:
+						res = first(subrule)
+						if '#' in res:
+							newList = []
+							res.remove('#')
+							ansNew = follow(curNT)
+							if ansNew != None:
+								if type(ansNew) is list:
+									newList = res + ansNew
+								else:
+									newList = res + [ansNew]
+							else:
+								newList = res
+							res = newList
+					else:
+						if nt != curNT:
+							res = follow(curNT)
+
+					if res is not None:
+						if type(res) is list:
+							for g in res:
+								solset.add(g)
+						else:
+							solset.add(res)
+	return list(solset)
+
+
+#########################################################################################
+
+def computeAllFirsts():
+	global rules, nonterm_userdef, term_userdef, diction, firsts
+	for rule in rules:
+		k = rule.split("->")
+		k[0] = k[0].strip()
+		k[1] = k[1].strip()
+		rhs = k[1]
+		multirhs = rhs.split('|')
+
+		for i in range(len(multirhs)):
+			multirhs[i] = multirhs[i].strip()
+			multirhs[i] = multirhs[i].split()
+		diction[k[0]] = multirhs
+	print(f"\nRules: \n")
+    
+	for y in diction:
+		print(f"{y}->{diction[y]}")
+	print(f"\nAfter elimination of left recursion:\n")
+
+	diction = removeLeftRecursion(diction)
+	for y in diction:
+		print(f"{y}->{diction[y]}")
+	print("\nAfter left factoring:\n")
+
+	diction = LeftFactoring(diction)
+	for y in diction:
+		print(f"{y}->{diction[y]}")
+
+	for y in list(diction.keys()):
+		t = set()
+		for sub in diction.get(y):
+			res = first(sub)
+			if res != None:
+				if type(res) is list:
+					for u in res:
+						t.add(u)
+				else:
+					t.add(res)
+
+		firsts[y] = t
+
+	print("\nCalculated firsts: ")
+	key_list = list(firsts.keys())
+	index = 0
+	for gg in firsts:
+		print(f"first({key_list[index]}) "
+			f"=> {firsts.get(gg)}")
+		index += 1
+
+##############################################################################################
+
+def computeAllFollows():
+	global start_symbol, rules, nonterm_userdef, term_userdef, diction, firsts, follows
+	for NT in diction:
+		solset = set()
+		sol = follow(NT)
+		if sol is not None:
+			for g in sol:
+				solset.add(g)
+		follows[NT] = solset
+
+	print("\nCalculated follows: ")
+	key_list = list(follows.keys())
+	index = 0
+	for gg in follows:
+		print(f"follow({key_list[index]})"
+			f" => {follows[gg]}")
+		index += 1
+
+################################################################################################
+
+def createParseTable():
+	import copy
+	global diction, firsts, follows, term_userdef
+	print("\nFirsts and Follow Result table\n")
+
+	mx_len_first = 0
+	mx_len_fol = 0
+
+	for u in diction:
+		k1 = len(str(firsts[u]))
+		k2 = len(str(follows[u]))
+		if k1 > mx_len_first:
+			mx_len_first = k1
+		if k2 > mx_len_fol:
+			mx_len_fol = k2
+
+	print(f"{{:<{10}}} "
+		f"{{:<{mx_len_first + 5}}} "
+		f"{{:<{mx_len_fol + 5}}}"
+		.format("Non-T", "FIRST", "FOLLOW"))
+
+	for u in diction:
+		print(f"{{:<{10}}} "
+			f"{{:<{mx_len_first + 5}}} "
+			f"{{:<{mx_len_fol + 5}}}"
+			.format(u, str(firsts[u]), str(follows[u])))
+
+	ntlist = list(diction.keys())
+	terminals = copy.deepcopy(term_userdef)
+	terminals.append('$')
+
+	mat = []
+	for x in diction:
+		row = []
+		for y in terminals:
+			row.append('')
+		
+		mat.append(row)
+
+	grammar_is_LL = True
+
+	for lhs in diction:
+		rhs = diction[lhs]
+		for y in rhs:
+			res = first(y)
+			if '#' in res:
+				if type(res) == str:
+					firstFollow = []
+					fol_op = follows[lhs]
+					if fol_op is str:
+						firstFollow.append(fol_op)
+					else:
+						for u in fol_op:
+							firstFollow.append(u)
+					res = firstFollow
+				else:
+					res.remove('#')
+					res = list(res) + list(follows[lhs])
+
+			ttemp = []
+			if type(res) is str:
+				ttemp.append(res)
+				res = copy.deepcopy(ttemp)
+			for c in res:
+				xnt = ntlist.index(lhs)
+				yt = terminals.index(c)
+				if mat[xnt][yt] == '':
+					mat[xnt][yt] = mat[xnt][yt] + f"{lhs}->{' '.join(y)}"
+				else:
+					if f"{lhs}->{y}" in mat[xnt][yt]:
+						continue
+					else:
+						grammar_is_LL = False
+						mat[xnt][yt] = mat[xnt][yt] + f",{lhs}->{' '.join(y)}"
+
+	print("\nGenerated parsing table:\n")
+	frmt = "{:>12}" * len(terminals)
+	print(frmt.format(*terminals))
+
+	j = 0
+	for y in mat:
+		frmt1 = "{:>12}" * len(y)
+		print(f"{ntlist[j]} {frmt1.format(*y)}")
+		j += 1
+
+	return (mat, grammar_is_LL, terminals)
+
+###############################################################################################
+
+def validateStringUsingStackBuffer(parsing_table, grammarll1,
+								table_term_list, input_string,
+								term_userdef,start_symbol):
+
+	print(f"\nValidate String => {input_string}\n")
+
+	if grammarll1 == False:
+		return f"\nInput String = " f"\"{input_string}\"\n" f"Grammar is not LL(1)"
+
+
+	stack = [start_symbol, '$']
+	buffer = []
+
+	input_string = input_string.split()
+	input_string.reverse()
+	buffer = ['$'] + input_string
+
+	print("{:>20} {:>20} {:>20}". format("Buffer", "Stack","Action"))
+
+	while True:
+		if stack == ['$'] and buffer == ['$']:
+			print("{:>20} {:>20} {:>20}". format(' '.join(buffer), ' '.join(stack), "Valid"))
+			return "\nValid String!"
+		elif stack[0] not in term_userdef:
+			x = list(diction.keys()).index(stack[0])
+			y = table_term_list.index(buffer[-1])
+			if parsing_table[x][y] != '':
+				entry = parsing_table[x][y]
+				print("{:>20} {:>20} {:>25}".
+					format(' '.join(buffer), ' '.join(stack), f"T[{stack[0]}][{buffer[-1]}] = {entry}"))
+				lhs_rhs = entry.split("->")
+				lhs_rhs[1] = lhs_rhs[1].replace('#', '').strip()
+				entryrhs = lhs_rhs[1].split()
+				stack = entryrhs + stack[1:]
+			else:
+				return f"\nInvalid String! No rule at " f"Table[{stack[0]}][{buffer[-1]}]."
+		else:
+			if stack[0] == buffer[-1]:
+				print("{:>20} {:>20} {:>20}". format(' '.join(buffer),' '. join(stack), f"Matched:{stack[0]}"))
+				buffer = buffer[:-1]
+				stack = stack[1:]
+			else:
+				return "\nInvalid String! Unmatched terminal symbols"
+
+#################################################################################################################################
+
+sample_input_string = None
+
+# sample (Result: LL(1))
+rules=["S -> A | B C",
+       "A -> a | b",
+       "B -> p | #",
+       "C -> c"]
+
+nonterm_userdef=['A','S','B','C']
+term_userdef=['a','c','b','p']
+sample_input_string="p c"
+
+diction = {}
+firsts = {}
+follows = {}
+
+computeAllFirsts()
+start_symbol = list(diction.keys())[0]
+
+computeAllFollows()
+
+(parsing_table, result, tabTerm) = createParseTable()
+
+if sample_input_string != None:
+	validity = validateStringUsingStackBuffer(parsing_table, result,
+											tabTerm, sample_input_string,
+											term_userdef,start_symbol)
+	print(validity)
+
+else:
+	print("\nNo input String detected")
+
+
+
+
+
+#RECURSIVE DESCENT
+
+print("Recursive Desent Parsing For following grammar\n")
+print("E->TE'\nE'->+TE'/@\nT->FT'\nT'->*FT'/@\nF->(E)/i\n")
+print("Enter the string want to be checked\n")
+
+global s, i
+
+s=list(input())
+i=0
+
+def match(a):
+    global s
+    global i
+    if(i>=len(s)):
+        return False
+    elif(s[i]==a):
+        i+=1
+        return True
+    else:
+        return False
+
+def F():
+    if(match("(")):
+        if(E()):
+            if(match(")")):
+                return True
+            else:
+                return False
+        else:
+            return False
+    elif(match("i")):
+        return True
+    else:
+        return False
+
+def Tx():
+    if(match("*")):
+        if(F()):
+            if(Tx()):
+                return True
+            else:
+                return False
+        else:
+            return False
+    else:
+        return True
+
+def T():
+    if(F()):
+        if(Tx()):
+            return True
+        else:
+            return False
+    else:
+        return False
+
+def Ex():
+    if(match("+")):
+        if(T()):
+            if(Ex()):
+                return True
+            else:
+                return False
+        else:
+            return False
+    else:
+        return True
+
+def E():
+    if(T()):
+        if(Ex()):
+            return True
+        else:
+            return False
+    else:
+        return False
+
+if(E()):
+    if(i==len(s)):
+        print("String is accepted")
+    else:
+         print("String is not accepted")
+else:
+    print("String is not accepted")
+    
+
+
+
+
