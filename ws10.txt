@@ -1,0 +1,236 @@
+// postfix to arithmetic every node in pafrse tree
+
+result = []
+stack = []
+def prec(c):
+	if c == '/' or c == '*':
+		return 2
+	elif c == '+' or c == '-':
+		return 1
+	else:
+		return -1
+
+def infix_to_postfix(s):
+	for i in range(len(s)):
+		c = s[i]
+		if ('a' <= c <= 'z') or ('A' <= c <= 'Z') or ('0' <= c <= '9'):
+			result.append(c)
+		elif c == '(':
+			stack.append(c)
+		elif c == ')':
+			while stack and stack[-1] != '(':
+				result.append(stack.pop())
+			stack.pop()
+		else:
+			while stack and (prec(s[i]) < prec(stack[-1]) or (prec(s[i]) == prec(stack[-1]) )):
+				result.append(stack.pop())
+			stack.append(c)
+
+	while stack:
+		result.append(stack.pop())
+	print(''.join(result))
+
+exp = "a+b*c"
+
+infix_to_postfix(exp)
+
+print(result)
+
+operator=['+','-','*','/']
+class Node:
+  def __init__(self, data):
+        self.data = data
+        self.left = None
+        self.right = None
+        self.vall = None
+        self.valr = None
+stack=[]
+ops=[]
+i=0
+while i<len(result):
+  if result[i] not in operator:
+    root=Node(result[i])
+    root.left=None
+    root.right=None
+    root.data=result[i]
+    stack.append(root)
+    print(result[i])
+  else:
+    if len(stack)>=2:
+      root=Node(result[i])
+      r=stack.pop()
+      l=stack.pop()
+      root.left=l
+      root.right=r
+      root.vall = l.data
+      root.valr=r.data
+      root.data=result[i]
+      stack.append(root)
+      print(result[i])
+  i+=1
+
+
+def inorder(root):
+  if root==None:
+    return
+  inorder(root.left)
+  print("---------------------")
+  print("Value : ",root.data)
+  print("left : ",root.vall)
+  print("right : ",root.valr)
+  print("---------------------\n")
+  inorder(root.right)
+inorder(root)
+
+
+// associate three address code of arithmetic with each node in parse tree
+
+class TreeNode:
+    def __init__(self, value):
+        self.value = value
+        self.children = []
+
+    def add_child(self, child):
+        self.children.append(child)
+
+    def __str__(self):
+        return str(self.value)
+
+
+def generate_code(expression):
+    global temp_count
+    code = []
+    stack = []
+    tokens = expression.split()
+    for token in tokens:
+        if token.isalnum():
+            stack.append(token)
+        else:
+            op2 = stack.pop()
+            op1 = stack.pop()
+            temp = "T"+str(temp_count)
+            temp_count += 1
+            code.append((token, op1, op2, temp))
+            stack.append(temp)
+    return code
+
+
+
+
+
+def construct_tree(code):
+    stack = []
+    for op, op1, op2, temp in code:
+        node = TreeNode((op, temp))
+        if op1.isdigit() or op1.isalpha():
+            node.add_child(TreeNode(op1))
+        else:
+            node.add_child(stack.pop())
+
+        if op2.isdigit() or op2.isalpha():
+            node.add_child(TreeNode(op2))
+        else:
+            node.add_child(stack.pop())
+        stack.append(node)
+    return stack.pop()
+
+
+def print_tree(node, level=0):
+    if node:
+        print("  " * level + str(node))
+        for child in node.children:
+            print_tree(child, level + 1)
+
+
+def infix_to_postfix(expression):
+    precedence = {'+': 1, '-': 1, '*': 2, '/': 2}
+    output = []
+    operator_stack = []
+    for token in expression.split():
+        if token.isdigit():
+            output.append(token)
+        elif token == '(':
+            operator_stack.append(token)
+        elif token == ')':
+            while operator_stack and operator_stack[-1] != '(':
+                output.append(operator_stack.pop())
+            operator_stack.pop()
+        else:
+            while operator_stack and precedence.get(token, 0) <= precedence.get(operator_stack[-1], 0):
+                output.append(operator_stack.pop())
+            operator_stack.append(token)
+    while operator_stack:
+        output.append(operator_stack.pop())
+    return ' '.join(output)
+
+
+# Main program starts here
+temp_count = 0
+infix_expression = "3 + 4 * ( 2 - 1 )"
+postfix_expression = infix_to_postfix(infix_expression)
+lines = generate_code(postfix_expression)
+root = construct_tree(lines)
+print_tree(root)
+
+
+
+
+//to associate three address code of Boolean expressions (involving relational
+operators, “and”, ”or” and not) with each node in the parse tree.
+
+class Node:
+  def __init__(self, data):
+        self.data = data
+        self.left = None
+        self.right = None
+        self.val = None
+next=0
+logic=['&&','||','!']
+relop=['<','>','<=','>=','==','!=']
+inp=input("Enter the String : ")
+inp = [i for i in inp.split()]
+print(inp)
+print("\n")
+st=[]
+while True:
+
+  if inp[0] >='a' and inp[0]<='z':
+    if inp[1] in relop and inp[2] >='a' and inp[2]<='z':
+      root=Node('E')
+      root.val=str(inp[0]+inp[1]+inp[2])
+      print('if ',inp[0],inp[1],inp[2],'goto',next+3)
+      print('E = 0')
+      print('goto',next+2)
+      print('E = 1')
+      next+=4
+      inp=inp[3:]
+      st.append(root)
+
+  elif inp[0] in logic:
+    st.append(inp[0])
+    inp=inp[1:]
+
+  if len(st)==3:
+    root=Node(st[1])
+    root.left=st[0]
+    root.right=st[2]
+    root.val=str(st[0].data+root.data+st[2].data)
+    print('E = ',st[0].data,root.data,st[2].data)
+    st=[root]
+
+  if len(inp)==0:
+    break
+
+
+
+def inorder(root):
+  if root==None:
+    return
+  inorder(root.left)
+  print("---------------------")
+  print("Value : ",root.data)
+  print("left : ",root.val)
+  print("---------------------\n")
+  inorder(root.right)
+inorder(root)
+
